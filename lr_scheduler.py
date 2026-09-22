@@ -43,13 +43,9 @@ def cosine_lr(
     # At step = warmup_steps:
     #     lr = max_lr
     #
-    # Example:
-    #     max_lr = 1e-3
-    #     warmup_steps = 1000
+    # 0 <= step < warmup_steps
     #
-    #     step = 500
-    #     lr = 1e-3 * 500 / 1000
-    #        = 5e-4
+    # lr(step) = max_lr * step / warmup_steps
     # ---------------------------------------------------------
     if step < warmup_steps:
         return max_lr * step / warmup_steps
@@ -65,15 +61,9 @@ def cosine_lr(
     # progress = 1.0
     #     -> end of training
     #
-    # Example:
+    # warmup_steps <= step <= total_steps
     #
-    #     warmup_steps = 1000
-    #     total_steps  = 10000
-    #
-    #     step = 5500
-    #
-    #     progress = (5500 - 1000) / (10000 - 1000)
-    #              = 0.5
+    # progress = (step - warmup_steps) / (total_steps - warmup_steps)
     # ---------------------------------------------------------
     progress = (step - warmup_steps) / (total_steps - warmup_steps)
 
@@ -111,6 +101,8 @@ def cosine_lr(
     # progress = 0   -> 1
     # progress = 0.5 -> 0.5
     # progress = 1   -> 0
+    #
+    # lr = min_lr + 0.5 * (max_lr - min_lr) * (1 + cos(pi * progress))
     # ---------------------------------------------------------
     cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
 
