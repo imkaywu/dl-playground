@@ -3,38 +3,72 @@ import torch
 import torch.nn as nn
 
 
-class MyLayerNorm(nn.Module):
-    def __init__(self, dim, eps=1e-5):
+class LayerNorm(nn.Module):
+    def __init__(self, d_model, eps=1e-5):
         super().__init__()
 
-        self.gamma = nn.Parameter(torch.ones(dim))
-        self.beta = nn.Parameter(torch.zeros(dim))
+        # Learnable scale (gamma) and bias (beta), each with shape [D]
+        self.gamma = nn.Parameter(torch.ones(d_model))
+        self.beta = nn.Parameter(torch.zeros(d_model))
 
         self.eps = eps
 
     def forward(self, x):
+        """
+        LayerNorm normalizes the D features of each token
+        independently.
+        """
+        # Calculate the mean of each token's D features.
+        #
+        # mu = (1 / D) * sum(x_i), for i =1, ..., D
+        #
+        # shape: [..., D] -> [..., 1]
         mean = x.mean(dim=-1, keepdim=True)
 
+        # Calculate the population variance.
+        #
+        # var = (1 / D) sum((x_i - mu)^2))
+        #
+        # shape: [..., D] -> [..., 1]
         var = ((x - mean) ** 2).mean(dim=-1, keepdim=True)
 
+        # Normalize each feature to approximately zero mean and unit
+        # variance.
+        #
+        # x_hat_i = (x_i - mu) / (sqrt(var + eps))
+        #
+        # eps prevents division by zero
+        # shape: [..., D]
         x_hat = (x - mean) / torch.sqrt(var + self.eps)
 
+        # Apply learnable scale and bias.
+        #
+        # y_i = gamma_i * x_hat_i + beta_i
+        #
+        # gamma and beta have shape [D] and broadcast across B and T.
+        # shape: [..., D]
         return self.gamma * x_hat + self.beta
 
 
 def test_layer_norm():
-    x = torch.randn(2, 5, 8)
+    B, T, D = 2, 5, 32
+    x = torch.randn(B, T, D)
 
-    my_ln = MyLayerNorm(8)
-    torch_ln = nn.LayerNorm(8)
+    ln = LayerNorm(d_model=D)
+    y = ln(x)
 
-    y1 = my_ln(x)
+    assert y.shape == x.shape
+
+    torch_ln = nn.LayerNorm(D)
     y2 = torch_ln(x)
 
-    print(torch.allclose(y1, y2, atol=1e-5))
+    assert y2.shape == x.shape
+
+    print(torch.allclose(y, y2, atol=1e-5))
+    print("LayerNorm test passed: ", y.shape)
 
 
-class MyBatchNorm:
+class BatchNorm:
     def __init__(self, D, eps=1e-5):
         self.gamma = np.ones(D)
         self.beta = np.zeros(D)
@@ -117,7 +151,7 @@ def test_batch_norm():
 
     x = np.random.randn(B, D)
 
-    bn = MyBatchNorm(D)
+    bn = BatchNorm(D)
 
     out = bn.forward(x)
 
